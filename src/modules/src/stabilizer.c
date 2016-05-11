@@ -208,8 +208,17 @@ void modeSwitcherInit(void)
 
 void modeSwitcher(void* param)
 {
-	  DEBUG_PRINT("----------------------------\n");
-	  DEBUG_PRINT(P_NAME "  modeSwitcher \n");
+	uint32_t lastWakeTime;
+	systemWaitStart();
+	lastWakeTime = xTaskGetTickCount ();
+
+	while(1)
+	  {
+	    vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 2 seconds
+	    DEBUG_PRINT("----------------------------\n");
+	    DEBUG_PRINT(P_NAME "  modeSwitcher \n");
+	  }
+
 }
 
 LOG_GROUP_START(stabilizer)
