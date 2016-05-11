@@ -33,5 +33,9 @@ void stabilizerInit(void);
 
 bool stabilizerTest(void);
 
+void modeSwitcherInit(void);
+
+void modeSwitcher(void);
+
 
 #endif /* STABALIZER_H_ */

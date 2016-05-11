@@ -23,11 +23,13 @@
  *
  *
  */
+#define DEBUG_MODULE "STAB"
 #include <math.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "debug.h"
 #include "config.h"
 #include "system.h"
 #include "pm.h"
@@ -78,6 +80,7 @@ uint32_t motorPowerM3;  // Motor 3 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
 static bool isInit;
+static bool isInitModeSwitcher;
 
 
 static uint16_t limitThrust(int32_t value);
@@ -167,6 +170,7 @@ void stabilizerInit(void)
   imu6Init();
   sensfusion6Init();
   attitudeControllerInit();
+  modeSwitcherInit();
 
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
@@ -189,6 +193,23 @@ bool stabilizerTest(void)
 static uint16_t limitThrust(int32_t value)
 {
   return limitUint16(value);
+}
+
+void modeSwitcherInit(void)
+{
+	if(isInitModeSwitcher)
+	    return;
+
+	xTaskCreate(modeSwitcher, MODE_SWITCHER_TASK_NAME,
+			MODE_SWITCHER_STACKSIZE, NULL, MODE_SWITCHER_TASK_PRI, NULL);
+
+	isInitModeSwitcher = true;
+}
+
+void modeSwitcher(void)
+{
+	  DEBUG_PRINT("----------------------------\n");
+	  DEBUG_PRINT(P_NAME "  modeSwitcher \n");
 }
 
 LOG_GROUP_START(stabilizer)

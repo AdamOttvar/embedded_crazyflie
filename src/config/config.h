@@ -81,6 +81,7 @@
 #define PARAM_TASK_PRI          1
 #define PROXIMITY_TASK_PRI      0
 #define PM_TASK_PRI             0
+#define MODE_SWITCHER_TASK_PRI	3
 
 #ifdef PLATFORM_CF2
   #define SYSLINK_TASK_PRI        5
@@ -118,6 +119,7 @@
 #define PROXIMITY_TASK_NAME     "PROXIMITY"
 #define EXTRX_TASK_NAME         "EXTRX"
 #define UART_RX_TASK_NAME       "UART"
+#define MODE_SWITCHER_TASK_NAME	"MODESWITCHER"
 
 //Task stack sizes
 #define SYSTEM_TASK_STACKSIZE         (2* configMINIMAL_STACK_SIZE)
@@ -137,6 +139,7 @@
 #define PROXIMITY_TASK_STACKSIZE      configMINIMAL_STACK_SIZE
 #define EXTRX_TASK_STACKSIZE          configMINIMAL_STACK_SIZE
 #define UART_RX_TASK_STACKSIZE        configMINIMAL_STACK_SIZE
+#define MODE_SWITCHER_STACKSIZE		  configMINIMAL_STACK_SIZE
 
 //The radio channel. From 0 to 125
 #define RADIO_CHANNEL 80
