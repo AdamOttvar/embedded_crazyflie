@@ -89,7 +89,7 @@ static uint16_t limitThrust(int32_t value);
 
 static void stabilizerTask(void* param)
 {
-  uint32_t motorCounter;
+  uint32_t motorCounter, modeCounter;
   uint32_t lastWakeTime;
 
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
@@ -109,22 +109,27 @@ static void stabilizerTask(void* param)
     if (imu6IsCalibrated())
     {
 
+    	if (xQueueReceive(xQueueMode, &modeCounter, M2T(10))) {
+			DEBUG_PRINT("----------------------------\n");
+			DEBUG_PRINT("Received: %u \n", (unsigned int)modeCounter);
+		}
+
     	if (xQueueReceive(xQueueRef, &motorCounter, M2T(10))) {
     		DEBUG_PRINT("----------------------------\n");
     		DEBUG_PRINT("Received: %u \n", (unsigned int)motorCounter);
     	}
 
 		if (motorCounter == 1) {
-			motorPowerM1 = limitThrust(6000);
+			motorPowerM1 = limitThrust(2000 + 5000*modeCounter);
 		}
 		else if (motorCounter == 2) {
-			motorPowerM2 = limitThrust(6000);
+			motorPowerM2 = limitThrust(2000 + 5000*modeCounter);
 		}
 		else if (motorCounter == 3) {
-			motorPowerM3 = limitThrust(6000);
+			motorPowerM3 = limitThrust(2000 + 5000*modeCounter);
 		}
 		else if (motorCounter == 4) {
-			motorPowerM4 = limitThrust(6000);
+			motorPowerM4 = limitThrust(2000 + 5000*modeCounter);
 		}
 		else {
 			motorPowerM2 = limitThrust(0.0);
@@ -180,14 +185,20 @@ static uint16_t limitThrust(int32_t value)
 void modeSwitcher(void* param)
 {
 	uint32_t lastWakeTime;
+	uint32_t modeCounter = 0;
 	systemWaitStart();
 	lastWakeTime = xTaskGetTickCount ();
 
 	while(1)
 	  {
-	    vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 2 seconds
-	    DEBUG_PRINT("----------------------------\n");
-	    DEBUG_PRINT(P_NAME "  modeSwitcher \n");
+		if (modeCounter == 0) {
+			modeCounter = 1;
+		}
+		else {
+			modeCounter = 0;
+		}
+	    vTaskDelayUntil(&lastWakeTime, M2T(10000)); // Wait 9 seconds
+	    xQueueSendToBack(xQueueMode, &modeCounter, M2T(10));
 	  }
 
 }
@@ -200,7 +211,7 @@ void modeSwitcherInit(void)
 	xTaskCreate(modeSwitcher, MODE_SWITCHER_TASK_NAME,
 			MODE_SWITCHER_STACKSIZE, NULL, MODE_SWITCHER_TASK_PRI, NULL);
 
-	//xQueueMode = xQueueCreate(1,sizeof(uint32_t));
+	xQueueMode = xQueueCreate(1,sizeof(uint32_t));
 
 	isInitModeSwitcher = true;
 }
@@ -221,10 +232,7 @@ void refMaker(void* param)
 		}
 
 	    vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 1 second
-	    if (! xQueueSendToBack(xQueueRef, &motorCounter, M2T(10))) {
-	    	DEBUG_PRINT("----------------------------\n");
-	    	DEBUG_PRINT(P_NAME "  Failed to send!\n");
-	    }
+	    xQueueSendToBack(xQueueRef, &motorCounter, M2T(10));
 	  }
 }
 
