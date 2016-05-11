@@ -37,5 +37,9 @@ void modeSwitcherInit(void);
 
 void modeSwitcher(void* param);
 
+void refMakerInit(void);
+
+void refMaker(void* param);
+
 
 #endif /* STABALIZER_H_ */

@@ -81,13 +81,15 @@ uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
 static bool isInit;
 static bool isInitModeSwitcher;
+static bool isInitRefMaker;
 
+QueueHandle_t xQueueRef, xQueueMode;
 
 static uint16_t limitThrust(int32_t value);
 
 static void stabilizerTask(void* param)
 {
-  uint32_t attitudeCounter = 0;
+  uint32_t motorCounter;
   uint32_t lastWakeTime;
 
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
@@ -106,57 +108,36 @@ static void stabilizerTask(void* param)
 
     if (imu6IsCalibrated())
     {
-      // 250HZ
-      if (++attitudeCounter >= ATTITUDE_UPDATE_RATE_DIVIDER)
-      {
-        sensfusion6UpdateQ(gyro.x, gyro.y, gyro.z, acc.x, acc.y, acc.z, ATTITUDE_UPDATE_DT);
-        sensfusion6GetEulerRPY(&eulerRollActual, &eulerPitchActual, &eulerYawActual);
 
-//        // Set motors depending on the euler angles
-//        motorPowerM1 = limitThrust(fabs(32000*eulerYawActual/180.0));
-//        motorPowerM2 = limitThrust(fabs(32000*eulerPitchActual/180.0));
-//        motorPowerM3 = limitThrust(fabs(32000*eulerRollActual/180.0));
-//        motorPowerM4 = limitThrust(fabs(32000*eulerYawActual/180.0));
-        if (eulerPitchActual < -5) {
-        	motorPowerM1 = limitThrust(fabs(32000*eulerPitchActual/180.0));
-        	motorPowerM4 = limitThrust(fabs(32000*eulerPitchActual/180.0));
-        	motorPowerM2 = limitThrust(0.0);
-        	motorPowerM3 = limitThrust(0.0);
-        }
-        else if (eulerPitchActual > 5) {
-			motorPowerM2 = limitThrust(fabs(32000*eulerPitchActual/180.0));
-			motorPowerM3 = limitThrust(fabs(32000*eulerPitchActual/180.0));
-			motorPowerM1 = limitThrust(0.0);
-			motorPowerM4 = limitThrust(0.0);
+    	if (xQueueReceive(xQueueRef, &motorCounter, M2T(10))) {
+    		DEBUG_PRINT("----------------------------\n");
+    		DEBUG_PRINT("Received: %u \n", (unsigned int)motorCounter);
+    	}
+
+		if (motorCounter == 1) {
+			motorPowerM1 = limitThrust(6000);
 		}
-        else if (eulerRollActual > 5) {
-			motorPowerM1 = limitThrust(fabs(32000*eulerRollActual/180.0));
-			motorPowerM2 = limitThrust(fabs(32000*eulerRollActual/180.0));
-			motorPowerM3 = limitThrust(0.0);
-			motorPowerM4 = limitThrust(0.0);
+		else if (motorCounter == 2) {
+			motorPowerM2 = limitThrust(6000);
 		}
-        else if (eulerRollActual < -5) {
-			motorPowerM3 = limitThrust(fabs(32000*eulerRollActual/180.0));
-			motorPowerM4 = limitThrust(fabs(32000*eulerRollActual/180.0));
-			motorPowerM1 = limitThrust(0.0);
+		else if (motorCounter == 3) {
+			motorPowerM3 = limitThrust(6000);
+		}
+		else if (motorCounter == 4) {
+			motorPowerM4 = limitThrust(6000);
+		}
+		else {
 			motorPowerM2 = limitThrust(0.0);
-		}
-        else {
-        	motorPowerM2 = limitThrust(0.0);
 			motorPowerM3 = limitThrust(0.0);
 			motorPowerM1 = limitThrust(0.0);
 			motorPowerM4 = limitThrust(0.0);
-        }
+		}
 
+		motorsSetRatio(MOTOR_M1, motorPowerM1);
+		motorsSetRatio(MOTOR_M2, motorPowerM2);
+		motorsSetRatio(MOTOR_M3, motorPowerM3);
+		motorsSetRatio(MOTOR_M4, motorPowerM4);
 
-        
-        motorsSetRatio(MOTOR_M1, motorPowerM1);
-        motorsSetRatio(MOTOR_M2, motorPowerM2);
-        motorsSetRatio(MOTOR_M3, motorPowerM3);
-        motorsSetRatio(MOTOR_M4, motorPowerM4);
-
-        attitudeCounter = 0;
-      }
     }
   }
 }
@@ -171,6 +152,7 @@ void stabilizerInit(void)
   sensfusion6Init();
   attitudeControllerInit();
   modeSwitcherInit();
+  refMakerInit();
 
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
@@ -195,17 +177,6 @@ static uint16_t limitThrust(int32_t value)
   return limitUint16(value);
 }
 
-void modeSwitcherInit(void)
-{
-	if(isInitModeSwitcher)
-	    return;
-
-	xTaskCreate(modeSwitcher, MODE_SWITCHER_TASK_NAME,
-			MODE_SWITCHER_STACKSIZE, NULL, MODE_SWITCHER_TASK_PRI, NULL);
-
-	isInitModeSwitcher = true;
-}
-
 void modeSwitcher(void* param)
 {
 	uint32_t lastWakeTime;
@@ -220,6 +191,56 @@ void modeSwitcher(void* param)
 	  }
 
 }
+
+void modeSwitcherInit(void)
+{
+	if(isInitModeSwitcher)
+	    return;
+
+	xTaskCreate(modeSwitcher, MODE_SWITCHER_TASK_NAME,
+			MODE_SWITCHER_STACKSIZE, NULL, MODE_SWITCHER_TASK_PRI, NULL);
+
+	//xQueueMode = xQueueCreate(1,sizeof(uint32_t));
+
+	isInitModeSwitcher = true;
+}
+
+
+void refMaker(void* param)
+{
+	uint32_t lastWakeTime;
+	uint32_t motorCounter = 0;
+	systemWaitStart();
+	lastWakeTime = xTaskGetTickCount ();
+
+	while(1)
+	  {
+
+		if (++motorCounter > 5) {
+			motorCounter = 1;
+		}
+
+	    vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 1 second
+	    if (! xQueueSendToBack(xQueueRef, &motorCounter, M2T(10))) {
+	    	DEBUG_PRINT("----------------------------\n");
+	    	DEBUG_PRINT(P_NAME "  Failed to send!\n");
+	    }
+	  }
+}
+
+void refMakerInit(void)
+{
+	if(isInitRefMaker)
+	    return;
+
+	xTaskCreate(refMaker, REF_MAKER_TASK_NAME,
+			REF_MAKER_STACKSIZE, NULL, REF_MAKER_TASK_PRI, NULL);
+
+	xQueueRef = xQueueCreate(1,sizeof(uint32_t));
+
+	isInitRefMaker = true;
+}
+
 
 LOG_GROUP_START(stabilizer)
 LOG_ADD(LOG_FLOAT, roll, &eulerRollActual)
