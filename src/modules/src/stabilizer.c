@@ -206,7 +206,7 @@ void modeSwitcherInit(void)
 	isInitModeSwitcher = true;
 }
 
-void modeSwitcher(void)
+void modeSwitcher(void* param)
 {
 	  DEBUG_PRINT("----------------------------\n");
 	  DEBUG_PRINT(P_NAME "  modeSwitcher \n");
