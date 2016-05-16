@@ -79,10 +79,10 @@ uint32_t motorPowerM2;  // Motor 2 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM3;  // Motor 3 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
-static uint32_t reference[4]; // thetaR,thetaP,z',thetaY'
-static uint32_t referenceOut[4];
-static uint32_t sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
-static uint32_t sensorsOut[4];
+static float reference[4]; // thetaR,thetaP,z',thetaY'
+static int32_t referenceOut[4];
+static float sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
+static int32_t sensorsOut[4];
 
 const float K[4][8]={
 		{-0.500, -50.000, 50.000, 0.500, -50.000, -0.510, 0.510, 5.000},
@@ -103,17 +103,16 @@ static bool isInitModeSwitcher;
 static bool isInitRefMaker;
 
 QueueHandle_t xQueueMode;
-QueueHandle_t xQueueRef;
-//xSemaphoreHandle refSemaphore = 0;
+//QueueHandle_t xQueueRef;
+xSemaphoreHandle refSemaphore = 0;
 
 static uint16_t limitThrust(int32_t value);
 
 static void stabilizerTask(void* param)
 {
-  uint32_t motorCounter;
+  //uint32_t motorCounter;
   uint32_t modeCounter;
   uint32_t lastWakeTime;
- // uint32_t thetaRRef = 0, thetaPRef = 0, zPrimRef = 0, thetaYPrimRef = 0;
 
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
 
@@ -147,36 +146,27 @@ static void stabilizerTask(void* param)
 			DEBUG_PRINT("Received: %u \n", (unsigned int)modeCounter);
 		}
 
-    	if (xQueueReceive(xQueueRef, &motorCounter, M2T(10))) {
-    	    		DEBUG_PRINT("----------------------------\n");
-    	    		DEBUG_PRINT("Received: %u \n", (unsigned int)motorCounter);
-    	    	}
-
-    	/*
     	if (xSemaphoreTake(refSemaphore,M2T(10))) {
-
-			thetaRRef = *(reference+0);		// thetaR
-			thetaPRef = *(reference+1);		// thetaP
-			zPrimRef = *(reference+2);		// z'
-			thetaYPrimRef = *(reference+3);		// thetaY'
+    		DEBUG_PRINT("----------------------------\n");
+    		DEBUG_PRINT("Semaphore taken");
+    		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
+			referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
+			referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
+			referenceOut[3] = Kr[3][0]*reference[0]+Kr[3][1]*reference[1]+Kr[3][2]*reference[2]+Kr[3][3]*reference[3];
 			xSemaphoreGive(refSemaphore);
     	}
-    	*/
+
 
     	sensorsOut[0] = K[0][0]*sensors[0]+K[0][1]*sensors[1]+K[0][2]*sensors[2]+K[0][3]*sensors[3]+K[0][4]*sensors[4]+K[0][5]*sensors[5]+K[0][6]*sensors[6]+K[0][7]*sensors[7];
     	sensorsOut[1] = K[1][0]*sensors[0]+K[1][1]*sensors[1]+K[1][2]*sensors[2]+K[1][3]*sensors[3]+K[1][4]*sensors[4]+K[1][5]*sensors[5]+K[1][6]*sensors[6]+K[1][7]*sensors[7];
     	sensorsOut[2] = K[2][0]*sensors[0]+K[2][1]*sensors[1]+K[2][2]*sensors[2]+K[2][3]*sensors[3]+K[2][4]*sensors[4]+K[2][5]*sensors[5]+K[2][6]*sensors[6]+K[2][7]*sensors[7];
     	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
 
-		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
-		referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
-		referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
-		referenceOut[3] = Kr[3][0]*reference[0]+Kr[3][1]*reference[1]+Kr[3][2]*reference[2]+Kr[3][3]*reference[3];
 
-    	motorPowerM1 = limitThrust(referenceOut[0]-sensorsOut[0]);
-    	motorPowerM2 = limitThrust(referenceOut[1]-sensorsOut[1]);
-    	motorPowerM3 = limitThrust(referenceOut[2]-sensorsOut[2]);
-    	motorPowerM4 = limitThrust(referenceOut[3]-sensorsOut[3]);
+    	motorPowerM1 = limitThrust(referenceOut[0]-sensorsOut[0]*50);
+    	motorPowerM2 = limitThrust(referenceOut[1]-sensorsOut[1]*50);
+    	motorPowerM3 = limitThrust(referenceOut[2]-sensorsOut[2]*50);
+    	motorPowerM4 = limitThrust(referenceOut[3]-sensorsOut[3]*50);
 
     	motorsSetRatio(MOTOR_M1, motorPowerM1);
     	motorsSetRatio(MOTOR_M2, motorPowerM2);
@@ -298,7 +288,6 @@ void refMaker(void* param)
 
 	while(1)
 	  {
-		/*
 		if (xSemaphoreTake(refSemaphore,M2T(10))) {
 			*(reference+0) = refCounter;		// thetaR
 			*(reference+1) = 0;		// thetaP
@@ -306,8 +295,7 @@ void refMaker(void* param)
 			*(reference+3) = 0;		// thetaY'
 			xSemaphoreGive(refSemaphore);
 		}
-		*/
-
+		/*
 		if (refCounter == 0)
 			refCounter = 1;
 		else
@@ -316,9 +304,10 @@ void refMaker(void* param)
 		if (++refCounter > 5) {
 			refCounter = 1;
 		}
+		xQueueSendToBack(xQueueRef, &refCounter, M2T(10));
+		*/
 
 	    vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 2 seconds
-	    xQueueSendToBack(xQueueRef, &refCounter, M2T(10));
 
 	  }
 }
@@ -331,8 +320,8 @@ void refMakerInit(void)
 	xTaskCreate(refMaker, REF_MAKER_TASK_NAME,
 			REF_MAKER_STACKSIZE, NULL, REF_MAKER_TASK_PRI, NULL);
 
-	xQueueRef = xQueueCreate(1,sizeof(uint32_t));
-	//refSemaphore = xSemaphoreCreateMutex();
+	//xQueueRef = xQueueCreate(1,sizeof(uint32_t));
+	refSemaphore = xSemaphoreCreateMutex();
 
 	isInitRefMaker = true;
 }
