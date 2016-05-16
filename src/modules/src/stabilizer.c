@@ -127,12 +127,14 @@ static void stabilizerTask(void* param)
 			thetaYPrimRef = *(reference+3);		// thetaY'
 			xSemaphoreGive(refSemaphore);
     	}
+
+
+
     	/*
     	if (xQueueReceive(xQueueRef, &motorCounter, M2T(10))) {
     		DEBUG_PRINT("----------------------------\n");
     		DEBUG_PRINT("Received: %u \n", (unsigned int)motorCounter);
     	}
-    	*/
 
 		if (motorCounter == 1) {
 			motorPowerM1 = limitThrust(2000 + 5000*modeCounter);
@@ -158,6 +160,7 @@ static void stabilizerTask(void* param)
 		motorsSetRatio(MOTOR_M3, motorPowerM3);
 		motorsSetRatio(MOTOR_M4, motorPowerM4);
 
+    	 */
     }
   }
 }
@@ -212,7 +215,7 @@ void modeSwitcher(void* param)
 		else {
 			modeCounter = 0;
 		}
-	    vTaskDelayUntil(&lastWakeTime, M2T(10000)); // Wait 9 seconds
+	    vTaskDelayUntil(&lastWakeTime, M2T(10000)); // Wait 10 seconds
 	    xQueueSendToBack(xQueueMode, &modeCounter, M2T(10));
 	  }
 
@@ -248,11 +251,12 @@ void refMaker(void* param)
 			*(reference+3) = 0;		// thetaY'
 			xSemaphoreGive(refSemaphore);
 		}
+		/*
 		if (refCounter == 0)
 			refCounter = 1;
 		else
 			refCounter = 0;
-
+		 */
 		vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 2 seconds
 		/*
 		if (++motorCounter > 5) {
