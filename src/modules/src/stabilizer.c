@@ -80,6 +80,23 @@ uint32_t motorPowerM3;  // Motor 3 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
 static uint32_t reference[4]; // thetaR,thetaP,z',thetaY'
+static uint32_t referenceOut[4];
+static uint32_t sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
+static uint32_t sensorsOut[4];
+
+const float K[4][8]={
+		{-0.500, -50.000, 50.000, 0.500, -50.000, -0.510, 0.510, 5.000},
+		{-0.500, -50.000, -50.000, -0.500, -50.000, -0.510, -0.510, -5.000},
+		{-0.500, 50.000, -50.000, 0.500, -50.000, 0.510, -0.510, 5.000},
+		{-0.500, 50.000, 50.000, -0.500, -50.000, 0.510, 0.510, -5.000}
+		};
+
+const float Kr[4][4]={
+		{-50.000, 50.000, -50.000, 5.000},
+		{-50.000, -50.000, -50.000, -5.000},
+		{50.000, -50.000, -50.000, 5.000},
+		{50.000, 50.000, -50.000, -5.000}
+		};
 
 static bool isInit;
 static bool isInitModeSwitcher;
@@ -113,6 +130,16 @@ static void stabilizerTask(void* param)
 
     if (imu6IsCalibrated())
     {
+    	sensfusion6UpdateQ(gyro.x, gyro.y, gyro.z, acc.x, acc.y, acc.z, ATTITUDE_UPDATE_DT);
+    	sensfusion6GetEulerRPY(&eulerRollActual, &eulerPitchActual, &eulerYawActual);
+    	sensors[0] = 0;
+    	sensors[1] = eulerRollActual;
+    	sensors[2] = eulerPitchActual;
+    	sensors[3] = eulerYawActual;
+    	sensors[4] = 0;
+    	sensors[5] = gyro.x;
+    	sensors[6] = gyro.y;
+    	sensors[7] = gyro.z;
 
     	if (xQueueReceive(xQueueMode, &modeCounter, M2T(10))) {
 			DEBUG_PRINT("----------------------------\n");
@@ -128,6 +155,20 @@ static void stabilizerTask(void* param)
 			xSemaphoreGive(refSemaphore);
     	}
 
+    	sensorsOut[0] = K[0][0]*sensors[0]+K[0][1]*sensors[1]+K[0][2]*sensors[2]+K[0][3]*sensors[3]+K[0][4]*sensors[4]+K[0][5]*sensors[5]+K[0][6]*sensors[6]+K[0][7]*sensors[7];
+    	sensorsOut[1] = K[1][0]*sensors[0]+K[1][1]*sensors[1]+K[1][2]*sensors[2]+K[1][3]*sensors[3]+K[1][4]*sensors[4]+K[1][5]*sensors[5]+K[1][6]*sensors[6]+K[1][7]*sensors[7];
+    	sensorsOut[2] = K[2][0]*sensors[0]+K[2][1]*sensors[1]+K[2][2]*sensors[2]+K[2][3]*sensors[3]+K[2][4]*sensors[4]+K[2][5]*sensors[5]+K[2][6]*sensors[6]+K[2][7]*sensors[7];
+    	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
+
+    	referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
+    	referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
+    	referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
+    	referenceOut[3] = Kr[3][0]*reference[0]+Kr[3][1]*reference[1]+Kr[3][2]*reference[2]+Kr[3][3]*reference[3];
+
+    	motorsSetRatio(MOTOR_M1, motorPowerM1);
+    	motorsSetRatio(MOTOR_M2, motorPowerM2);
+    	motorsSetRatio(MOTOR_M3, motorPowerM3);
+    	motorsSetRatio(MOTOR_M4, motorPowerM4);
 
 
     	/*
@@ -159,8 +200,8 @@ static void stabilizerTask(void* param)
 		motorsSetRatio(MOTOR_M2, motorPowerM2);
 		motorsSetRatio(MOTOR_M3, motorPowerM3);
 		motorsSetRatio(MOTOR_M4, motorPowerM4);
+		*/
 
-    	 */
     }
   }
 }
