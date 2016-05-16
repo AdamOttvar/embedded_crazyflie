@@ -79,13 +79,15 @@ uint32_t motorPowerM2;  // Motor 2 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM3;  // Motor 3 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
-static float reference[4];
+static uint32_t reference[4]; // thetaR,thetaP,z',thetaY'
 
 static bool isInit;
 static bool isInitModeSwitcher;
 static bool isInitRefMaker;
 
-QueueHandle_t xQueueRef, xQueueMode;
+QueueHandle_t xQueueMode;
+//QueueHandle_t xQueueRef;
+xSemaphoreHandle refSemaphore = 0;
 
 static uint16_t limitThrust(int32_t value);
 
@@ -93,6 +95,7 @@ static void stabilizerTask(void* param)
 {
   uint32_t motorCounter, modeCounter;
   uint32_t lastWakeTime;
+  uint32_t thetaRRef = 0, thetaPRef = 0, zPrimRef = 0, thetaYPrimRef = 0;
 
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
 
@@ -116,10 +119,20 @@ static void stabilizerTask(void* param)
 			DEBUG_PRINT("Received: %u \n", (unsigned int)modeCounter);
 		}
 
+    	if (xSemaphoreTake(refSemaphore,M2T(10))) {
+
+			thetaRRef = *(reference+0);		// thetaR
+			thetaPRef = *(reference+1);		// thetaP
+			zPrimRef = *(reference+2);		// z'
+			thetaYPrimRef = *(reference+3);		// thetaY'
+			xSemaphoreGive(refSemaphore);
+    	}
+    	/*
     	if (xQueueReceive(xQueueRef, &motorCounter, M2T(10))) {
     		DEBUG_PRINT("----------------------------\n");
     		DEBUG_PRINT("Received: %u \n", (unsigned int)motorCounter);
     	}
+    	*/
 
 		if (motorCounter == 1) {
 			motorPowerM1 = limitThrust(2000 + 5000*modeCounter);
@@ -193,10 +206,12 @@ void modeSwitcher(void* param)
 
 	while(1)
 	  {
-		*(reference + 0) = 0;
-		*(reference + 1) = 0;
-		*(reference + 2) = 0;
-		*(reference + 3) = 0;
+		if (modeCounter == 0) {
+			modeCounter = 1;
+		}
+		else {
+			modeCounter = 0;
+		}
 	    vTaskDelayUntil(&lastWakeTime, M2T(10000)); // Wait 9 seconds
 	    xQueueSendToBack(xQueueMode, &modeCounter, M2T(10));
 	  }
@@ -220,19 +235,33 @@ void modeSwitcherInit(void)
 void refMaker(void* param)
 {
 	uint32_t lastWakeTime;
-	uint32_t motorCounter = 0;
+	uint32_t refCounter = 0;
 	systemWaitStart();
 	lastWakeTime = xTaskGetTickCount ();
 
 	while(1)
 	  {
+		if (xSemaphoreTake(refSemaphore,M2T(10))) {
+			*(reference+0) = refCounter;		// thetaR
+			*(reference+1) = 0;		// thetaP
+			*(reference+2) = 0;		// z'
+			*(reference+3) = 0;		// thetaY'
+			xSemaphoreGive(refSemaphore);
+		}
+		if (refCounter == 0)
+			refCounter = 1;
+		else
+			refCounter = 0;
 
+		vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 2 seconds
+		/*
 		if (++motorCounter > 5) {
 			motorCounter = 1;
 		}
 
 	    vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 1 second
 	    xQueueSendToBack(xQueueRef, &motorCounter, M2T(10));
+	    */
 	  }
 }
 
@@ -244,7 +273,8 @@ void refMakerInit(void)
 	xTaskCreate(refMaker, REF_MAKER_TASK_NAME,
 			REF_MAKER_STACKSIZE, NULL, REF_MAKER_TASK_PRI, NULL);
 
-	xQueueRef = xQueueCreate(1,sizeof(uint32_t));
+	//xQueueRef = xQueueCreate(1,sizeof(uint32_t));
+	refSemaphore = xSemaphoreCreateMutex();
 
 	isInitRefMaker = true;
 }
