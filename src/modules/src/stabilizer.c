@@ -79,6 +79,8 @@ uint32_t motorPowerM2;  // Motor 2 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM3;  // Motor 3 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
+static float reference[4];
+
 static bool isInit;
 static bool isInitModeSwitcher;
 static bool isInitRefMaker;
@@ -191,12 +193,10 @@ void modeSwitcher(void* param)
 
 	while(1)
 	  {
-		if (modeCounter == 0) {
-			modeCounter = 1;
-		}
-		else {
-			modeCounter = 0;
-		}
+		*(reference + 0) = 0;
+		*(reference + 1) = 0;
+		*(reference + 2) = 0;
+		*(reference + 3) = 0;
 	    vTaskDelayUntil(&lastWakeTime, M2T(10000)); // Wait 9 seconds
 	    xQueueSendToBack(xQueueMode, &modeCounter, M2T(10));
 	  }
