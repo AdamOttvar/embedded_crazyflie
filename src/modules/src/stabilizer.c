@@ -110,9 +110,10 @@ static uint16_t limitThrust(int32_t value);
 
 static void stabilizerTask(void* param)
 {
-  uint32_t motorCounter, modeCounter;
+  //uint32_t motorCounter;
+  uint32_t modeCounter;
   uint32_t lastWakeTime;
-  uint32_t thetaRRef = 0, thetaPRef = 0, zPrimRef = 0, thetaYPrimRef = 0;
+ // uint32_t thetaRRef = 0, thetaPRef = 0, zPrimRef = 0, thetaYPrimRef = 0;
 
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
 
@@ -146,6 +147,7 @@ static void stabilizerTask(void* param)
 			DEBUG_PRINT("Received: %u \n", (unsigned int)modeCounter);
 		}
 
+    	/*
     	if (xSemaphoreTake(refSemaphore,M2T(10))) {
 
 			thetaRRef = *(reference+0);		// thetaR
@@ -154,16 +156,25 @@ static void stabilizerTask(void* param)
 			thetaYPrimRef = *(reference+3);		// thetaY'
 			xSemaphoreGive(refSemaphore);
     	}
+    	*/
 
     	sensorsOut[0] = K[0][0]*sensors[0]+K[0][1]*sensors[1]+K[0][2]*sensors[2]+K[0][3]*sensors[3]+K[0][4]*sensors[4]+K[0][5]*sensors[5]+K[0][6]*sensors[6]+K[0][7]*sensors[7];
     	sensorsOut[1] = K[1][0]*sensors[0]+K[1][1]*sensors[1]+K[1][2]*sensors[2]+K[1][3]*sensors[3]+K[1][4]*sensors[4]+K[1][5]*sensors[5]+K[1][6]*sensors[6]+K[1][7]*sensors[7];
     	sensorsOut[2] = K[2][0]*sensors[0]+K[2][1]*sensors[1]+K[2][2]*sensors[2]+K[2][3]*sensors[3]+K[2][4]*sensors[4]+K[2][5]*sensors[5]+K[2][6]*sensors[6]+K[2][7]*sensors[7];
     	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
 
-    	referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
-    	referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
-    	referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
-    	referenceOut[3] = Kr[3][0]*reference[0]+Kr[3][1]*reference[1]+Kr[3][2]*reference[2]+Kr[3][3]*reference[3];
+    	if (xSemaphoreTake(refSemaphore,M2T(10))) {
+			referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
+			referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
+			referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
+			referenceOut[3] = Kr[3][0]*reference[0]+Kr[3][1]*reference[1]+Kr[3][2]*reference[2]+Kr[3][3]*reference[3];
+			xSemaphoreGive(refSemaphore);
+    	}
+
+    	motorPowerM1 = limitThrust(referenceOut[0]-sensorsOut[0]);
+    	motorPowerM2 = limitThrust(referenceOut[1]-sensorsOut[1]);
+    	motorPowerM3 = limitThrust(referenceOut[2]-sensorsOut[2]);
+    	motorPowerM4 = limitThrust(referenceOut[3]-sensorsOut[3]);
 
     	motorsSetRatio(MOTOR_M1, motorPowerM1);
     	motorsSetRatio(MOTOR_M2, motorPowerM2);
