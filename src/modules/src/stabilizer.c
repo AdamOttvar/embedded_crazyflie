@@ -163,10 +163,10 @@ static void stabilizerTask(void* param)
     	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
 
 
-    	motorPowerM1 = limitThrust(referenceOut[0]-sensorsOut[0]*50);
-    	motorPowerM2 = limitThrust(referenceOut[1]-sensorsOut[1]*50);
-    	motorPowerM3 = limitThrust(referenceOut[2]-sensorsOut[2]*50);
-    	motorPowerM4 = limitThrust(referenceOut[3]-sensorsOut[3]*50);
+    	motorPowerM1 = limitThrust(referenceOut[0]-sensorsOut[0]);
+    	motorPowerM2 = limitThrust(referenceOut[1]-sensorsOut[1]);
+    	motorPowerM3 = limitThrust(referenceOut[2]-sensorsOut[2]);
+    	motorPowerM4 = limitThrust(referenceOut[3]-sensorsOut[3]);
 
     	motorsSetRatio(MOTOR_M1, motorPowerM1);
     	motorsSetRatio(MOTOR_M2, motorPowerM2);
