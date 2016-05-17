@@ -85,18 +85,20 @@ static float sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
 static float sensorsOut[4];
 static int32_t controlMotor[4];
 
+const float thrustOffset = 0.04;
+
 const float K[4][8]={
-		{-0.500, -50.000, 50.000, 0.500, -1.583, -0.510, 0.510, 1.581},
-		{-0.500, -50.000, -50.000, -0.500, -1.583, -0.510, -0.510, -1.581},
-		{-0.500, 50.000, -50.000, 0.500, -1.583, 0.510, -0.510, 1.581},
-		{-0.500, 50.000, 50.000, -0.500, -1.583, 0.510, 0.510, -1.581}
+		{-0.00000, -0.05000, 0.05000, 0.00001, -0.00026, -0.00316, 0.00316, 0.00005},
+		{-0.00000, -0.05000, -0.05000, -0.00001, -0.00026, -0.00316, -0.00316, -0.00005},
+		{-0.00001, 0.05000, -0.05000, 0.00001, -0.00026, 0.00316, -0.00316, 0.00005},
+		{-0.00001, 0.05000, 0.05000, -0.00001, -0.00026, 0.00316, 0.00316, -0.00005}
 		};
 
 const float Kr[4][4]={
-		{-50.000, 50.000, -1.583, 1.581},
-		{-50.000, -50.000, -1.583, -1.581},
-		{50.000, -50.000, -1.583, 1.581},
-		{50.000, 50.000, -1.583, -1.581}
+		{-0.05000, 0.05000, -0.00026, 0.00005},
+		{-0.05000, -0.05000, -0.00026, -0.00005},
+		{0.05000, -0.05000, -0.00026, 0.00005},
+		{0.05000, 0.05000, -0.00026, -0.00005}
 		};
 
 static bool isInit;
@@ -167,10 +169,10 @@ static void stabilizerTask(void* param)
     	//motorPowerM2 = limitThrust(10000 + referenceOut[1]-sensorsOut[1]);
     	//motorPowerM3 = limitThrust(10000 + referenceOut[2]-sensorsOut[2]);
     	//motorPowerM4 = limitThrust(10000 + referenceOut[3]-sensorsOut[3]);
-    	controlMotor[0] = (int32_t)((referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 / 9.81);
-    	controlMotor[1] = (int32_t)((referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 / 9.81);
-    	controlMotor[2] = (int32_t)((referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 / 9.81);
-    	controlMotor[3] = (int32_t)((referenceOut[3]-sensorsOut[3]) * 1000.0 * 1092.0 / 9.81);
+    	controlMotor[0] = (int32_t)((thrustOffset + referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 / 9.81);
+    	controlMotor[1] = (int32_t)((thrustOffset + referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 / 9.81);
+    	controlMotor[2] = (int32_t)((thrustOffset + referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 / 9.81);
+    	controlMotor[3] = (int32_t)((thrustOffset + referenceOut[3]-sensorsOut[3]) * 1000.0 * 1092.0 / 9.81);
 
     	motorPowerM1 = limitThrust(controlMotor[0]);
     	motorPowerM2 = limitThrust(controlMotor[1]);
