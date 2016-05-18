@@ -16631,7 +16631,7 @@ LOAD /home/bitcraze/bin/gcc-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/4.9.3/arm
  .debug_abbrev  0x0000e3a7      0x2a5 bin/exptest.o
  .debug_abbrev  0x0000e64c      0x274 bin/configblockeeprom.o
 
-.debug_line     0x00000000    0x28718
+.debug_line     0x00000000    0x28716
  *(.debug_line)
  .debug_line    0x00000000      0x41f bin/list.o
  .debug_line    0x0000041f      0xbe6 bin/tasks.o
@@ -16669,72 +16669,72 @@ LOAD /home/bitcraze/bin/gcc-arm-none-eabi/bin/../lib/gcc/arm-none-eabi/4.9.3/arm
  .debug_line    0x0000cb21      0x4d5 bin/commander.o
  .debug_line    0x0000cff6      0x454 bin/attitude_pid_controller.o
  .debug_line    0x0000d44a      0x37e bin/sensfusion6.o
- .debug_line    0x0000d7c8      0x9ad bin/stabilizer.o
- .debug_line    0x0000e175      0x27c bin/position_estimator_altitude.o
- .debug_line    0x0000e3f1      0x32f bin/position_controller_altitude.o
- .debug_line    0x0000e720      0x2d6 bin/altitude_hold.o
- .debug_line    0x0000e9f6      0x6f9 bin/log.o
- .debug_line    0x0000f0ef      0x40d bin/worker.o
- .debug_line    0x0000f4fc      0x1be bin/filter.o
- .debug_line    0x0000f6ba      0x2a9 bin/cfassert.o
- .debug_line    0x0000f963      0x27e bin/eprintf.o
- .debug_line    0x0000fbe1      0x1e7 bin/crc.o
- .debug_line    0x0000fdc8      0x29c bin/num.o
- .debug_line    0x00010064      0x1fc bin/version.o
- .debug_line    0x00010260      0x317 bin/FreeRTOS-openocd.o
- .debug_line    0x00010577      0x4ec bin/system_stm32f4xx.o
- .debug_line    0x00010a63      0x4e1 bin/cpal_hal.o
- .debug_line    0x00010f44      0xa03 bin/cpal_i2c.o
- .debug_line    0x00011947      0x799 bin/cpal_i2c_hal_stm32f4xx.o
- .debug_line    0x000120e0      0xa10 bin/usb_core.o
- .debug_line    0x00012af0      0x664 bin/usb_dcd_int.o
- .debug_line    0x00013154      0x6f0 bin/usb_dcd.o
- .debug_line    0x00013844      0x619 bin/usbd_ioreq.o
- .debug_line    0x00013e5d      0x6c3 bin/usbd_req.o
- .debug_line    0x00014520      0x6fc bin/usbd_core.o
- .debug_line    0x00014c1c       0x71 bin/platform_cf2.o
- .debug_line    0x00014c8d      0x706 bin/led_f405.o
- .debug_line    0x00015393     0x197d bin/mpu6500.o
- .debug_line    0x00016d10      0x961 bin/i2cdev_f405.o
- .debug_line    0x00017671      0x787 bin/ws2812_cf2.o
- .debug_line    0x00017df8      0x7b0 bin/lps25h.o
- .debug_line    0x000185a8      0x89d bin/ak8963.o
- .debug_line    0x00018e45      0x70c bin/eeprom.o
- .debug_line    0x00019551      0x699 bin/piezo.o
- .debug_line    0x00019bea      0x8c8 bin/uart_syslink.o
- .debug_line    0x0001a4b2      0x76c bin/uart1.o
- .debug_line    0x0001ac1e      0x57f bin/watchdog.o
- .debug_line    0x0001b19d      0x721 bin/cppm.o
- .debug_line    0x0001b8be      0x5f7 bin/usb_bsp.o
- .debug_line    0x0001beb5      0x50b bin/usblink.o
- .debug_line    0x0001c3c0      0x658 bin/usbd_desc.o
- .debug_line    0x0001ca18      0x93d bin/usb.o
- .debug_line    0x0001d355      0x987 bin/imu_cf2.o
- .debug_line    0x0001dcdc      0x91a bin/pm_f405.o
- .debug_line    0x0001e5f6      0x4f2 bin/syslink.o
- .debug_line    0x0001eae8      0x51c bin/radiolink.o
- .debug_line    0x0001f004      0x50f bin/ow_syslink.o
- .debug_line    0x0001f513      0x502 bin/usec_time.o
- .debug_line    0x0001fa15      0xcee bin/libdw1000.o
- .debug_line    0x00020703      0x255 bin/libdw1000Spi.o
- .debug_line    0x00020958      0x42d bin/platformservice.o
- .debug_line    0x00020d85      0x4f5 bin/sound_cf2.o
- .debug_line    0x0002127a      0x6ab bin/extrx.o
- .debug_line    0x00021925      0x67b bin/deck.o
- .debug_line    0x00021fa0      0x7a2 bin/deck_info.o
- .debug_line    0x00022742      0x6e1 bin/deck_drivers.o
- .debug_line    0x00022e23      0x67d bin/deck_test.o
- .debug_line    0x000234a0      0x52c bin/deck_constants.o
- .debug_line    0x000239cc      0x57a bin/deck_digital.o
- .debug_line    0x00023f46      0x5b3 bin/deck_analog.o
- .debug_line    0x000244f9      0x821 bin/deck_spi.o
- .debug_line    0x00024d1a      0xd48 bin/ledring12.o
- .debug_line    0x00025a62      0x666 bin/buzzdeck.o
- .debug_line    0x000260c8      0x871 bin/gtgps.o
- .debug_line    0x00026939      0x97b bin/dwm1000.o
- .debug_line    0x000272b4      0x660 bin/cppmdeck.o
- .debug_line    0x00027914      0x6a8 bin/exptest.o
- .debug_line    0x00027fbc      0x75c bin/configblockeeprom.o
+ .debug_line    0x0000d7c8      0x9ab bin/stabilizer.o
+ .debug_line    0x0000e173      0x27c bin/position_estimator_altitude.o
+ .debug_line    0x0000e3ef      0x32f bin/position_controller_altitude.o
+ .debug_line    0x0000e71e      0x2d6 bin/altitude_hold.o
+ .debug_line    0x0000e9f4      0x6f9 bin/log.o
+ .debug_line    0x0000f0ed      0x40d bin/worker.o
+ .debug_line    0x0000f4fa      0x1be bin/filter.o
+ .debug_line    0x0000f6b8      0x2a9 bin/cfassert.o
+ .debug_line    0x0000f961      0x27e bin/eprintf.o
+ .debug_line    0x0000fbdf      0x1e7 bin/crc.o
+ .debug_line    0x0000fdc6      0x29c bin/num.o
+ .debug_line    0x00010062      0x1fc bin/version.o
+ .debug_line    0x0001025e      0x317 bin/FreeRTOS-openocd.o
+ .debug_line    0x00010575      0x4ec bin/system_stm32f4xx.o
+ .debug_line    0x00010a61      0x4e1 bin/cpal_hal.o
+ .debug_line    0x00010f42      0xa03 bin/cpal_i2c.o
+ .debug_line    0x00011945      0x799 bin/cpal_i2c_hal_stm32f4xx.o
+ .debug_line    0x000120de      0xa10 bin/usb_core.o
+ .debug_line    0x00012aee      0x664 bin/usb_dcd_int.o
+ .debug_line    0x00013152      0x6f0 bin/usb_dcd.o
+ .debug_line    0x00013842      0x619 bin/usbd_ioreq.o
+ .debug_line    0x00013e5b      0x6c3 bin/usbd_req.o
+ .debug_line    0x0001451e      0x6fc bin/usbd_core.o
+ .debug_line    0x00014c1a       0x71 bin/platform_cf2.o
+ .debug_line    0x00014c8b      0x706 bin/led_f405.o
+ .debug_line    0x00015391     0x197d bin/mpu6500.o
+ .debug_line    0x00016d0e      0x961 bin/i2cdev_f405.o
+ .debug_line    0x0001766f      0x787 bin/ws2812_cf2.o
+ .debug_line    0x00017df6      0x7b0 bin/lps25h.o
+ .debug_line    0x000185a6      0x89d bin/ak8963.o
+ .debug_line    0x00018e43      0x70c bin/eeprom.o
+ .debug_line    0x0001954f      0x699 bin/piezo.o
+ .debug_line    0x00019be8      0x8c8 bin/uart_syslink.o
+ .debug_line    0x0001a4b0      0x76c bin/uart1.o
+ .debug_line    0x0001ac1c      0x57f bin/watchdog.o
+ .debug_line    0x0001b19b      0x721 bin/cppm.o
+ .debug_line    0x0001b8bc      0x5f7 bin/usb_bsp.o
+ .debug_line    0x0001beb3      0x50b bin/usblink.o
+ .debug_line    0x0001c3be      0x658 bin/usbd_desc.o
+ .debug_line    0x0001ca16      0x93d bin/usb.o
+ .debug_line    0x0001d353      0x987 bin/imu_cf2.o
+ .debug_line    0x0001dcda      0x91a bin/pm_f405.o
+ .debug_line    0x0001e5f4      0x4f2 bin/syslink.o
+ .debug_line    0x0001eae6      0x51c bin/radiolink.o
+ .debug_line    0x0001f002      0x50f bin/ow_syslink.o
+ .debug_line    0x0001f511      0x502 bin/usec_time.o
+ .debug_line    0x0001fa13      0xcee bin/libdw1000.o
+ .debug_line    0x00020701      0x255 bin/libdw1000Spi.o
+ .debug_line    0x00020956      0x42d bin/platformservice.o
+ .debug_line    0x00020d83      0x4f5 bin/sound_cf2.o
+ .debug_line    0x00021278      0x6ab bin/extrx.o
+ .debug_line    0x00021923      0x67b bin/deck.o
+ .debug_line    0x00021f9e      0x7a2 bin/deck_info.o
+ .debug_line    0x00022740      0x6e1 bin/deck_drivers.o
+ .debug_line    0x00022e21      0x67d bin/deck_test.o
+ .debug_line    0x0002349e      0x52c bin/deck_constants.o
+ .debug_line    0x000239ca      0x57a bin/deck_digital.o
+ .debug_line    0x00023f44      0x5b3 bin/deck_analog.o
+ .debug_line    0x000244f7      0x821 bin/deck_spi.o
+ .debug_line    0x00024d18      0xd48 bin/ledring12.o
+ .debug_line    0x00025a60      0x666 bin/buzzdeck.o
+ .debug_line    0x000260c6      0x871 bin/gtgps.o
+ .debug_line    0x00026937      0x97b bin/dwm1000.o
+ .debug_line    0x000272b2      0x660 bin/cppmdeck.o
+ .debug_line    0x00027912      0x6a8 bin/exptest.o
+ .debug_line    0x00027fba      0x75c bin/configblockeeprom.o
 
 .debug_frame    0x00000000     0x8b90
  *(.debug_frame)
