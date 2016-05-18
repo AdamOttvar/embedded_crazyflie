@@ -87,12 +87,11 @@ static int32_t controlMotor[4];
 
 const float thrustOffset = 0.06;  // Thrust per motor in order to reach equilibrium
 
-const float K[4][8]={
-		{-0.0000016, -0.00050000, 0.00050000, 0.0000016, -0.0005209, -0.0010005, 0.0010005, 0.0000016},
-		{-0.0000016, -0.00050000, -0.00050000, -0.0000016, -0.0005209, -0.0010005, -0.0010005, -0.0000016},
-		{-0.0000016, 0.00050000, -0.00050000, 0.0000016, -0.0005209, 0.0010005, -0.0010005, 0.0000016},
-		{-0.0000016, 0.00050000, 0.00050000, -0.0000016, -0.0005209, 0.0010005, 0.0010005, -0.0000016}
-		};
+const float K[4][8] ={{-0.0000016, -0.00050000, 0.00200, 0.0000016, -0.0005209, -0.0010005, 0.0010005, 0.0000016},
+					{-0.0000016, -0.00050000, -0.00200, -0.0000016, -0.0005209, -0.0010005, -0.0010005, -0.0000016},
+					{-0.0000016, 0.00050000, -0.00200, 0.0000016, -0.0005209, 0.0010005, -0.0010005, 0.0000016},
+					{-0.0000016, 0.00050000, 0.00200, -0.0000016, -0.0005209, 0.0010005, 0.0010005, -0.0000016}
+					};
 
 const float Kr[4][4]={
 		{-0.01581, 0.01581, -0.00165, 0.00158},
@@ -133,12 +132,13 @@ static void stabilizerTask(void* param)
 
     if (imu6IsCalibrated())
     {
+
     	sensfusion6UpdateQ(gyro.x, gyro.y, gyro.z, acc.x, acc.y, acc.z, ATTITUDE_UPDATE_DT);
     	sensfusion6GetEulerRPY(&eulerRollActual, &eulerPitchActual, &eulerYawActual);
     	sensors[0] = 0;
-    	sensors[1] = eulerRollActual;
+    	sensors[1] = 0; //eulerRollActual;
     	sensors[2] = eulerPitchActual;
-    	sensors[3] = eulerYawActual;
+    	sensors[3] = 0; //eulerYawActual;
     	sensors[4] = 0;
     	sensors[5] = 0;	//gyro.x;
     	sensors[6] = 0; //gyro.y;
@@ -377,3 +377,4 @@ LOG_ADD(LOG_FLOAT, sens2, &sensorsOut[1])
 LOG_ADD(LOG_FLOAT, sens3, &sensorsOut[2])
 LOG_ADD(LOG_FLOAT, sens4, &sensorsOut[3])
 LOG_GROUP_STOP(controller)
+
