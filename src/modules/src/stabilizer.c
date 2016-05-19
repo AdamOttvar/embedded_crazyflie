@@ -85,26 +85,30 @@ static float sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
 static float sensorsOut[4];
 static int32_t controlMotor[4];
 
-const float thrustOffset = 0.06;  // Thrust per motor in order to reach equilibrium
+static float thrustOffset = 0.06;  // Thrust per motor in order to reach equilibrium
+float pitch_gain = 0.00003763;
 
+/*
 const float K[4][8]={
 		{-0.0000005, -0.0008000, 0.0008000, 0.0000005, -0.0000823, -0.00003164, 0.00003164, 0.0000000},
 		{-0.0000005, -0.0008000, -0.0008000, -0.0000005, -0.0000823, -0.00003164, -0.00003164, -0.0000000},
 		{-0.0000005, 0.0008000, -0.0008000, 0.0000005, -0.0000823, 0.00003164, -0.00003164, 0.0000000},
 		{-0.0000005, 0.0008000, 0.0008000, -0.0000005, -0.0000823, 0.00003164, 0.00003164, -0.0000000}
 		};
-/*
-const float K[4][8] ={{-0.0000016, -0.00080000, 0.000400, 0.0000016, -0.0005209, -0.0010005, 0.0000080, 0.0000016},
-					{-0.0000016, -0.00080000, -0.000400, -0.0000016, -0.0005209, -0.0010005, -0.0000080, -0.0000016},
-					{-0.0000016, 0.00080000, -0.000400, 0.0000016, -0.0005209, 0.0010005, -0.0000080, 0.0000016},
-					{-0.0000016, 0.00080000, 0.000400, -0.0000016, -0.0005209, 0.0010005, 0.0000080, -0.0000016}
-					};
-*/
+		*/
+
+static float K[4][8]={
+		{-0.0000050, -0.0007071, 0.0007071, 0.0000050, -0.0002646, -0.0003763, 0.0003763, 0.0000050},
+		{-0.0000050, -0.0007071, -0.0007071, -0.0000050, -0.0002646, -0.0003763, -0.0003763, -0.0000050},
+		{-0.0000050, 0.0007071, -0.0007071, 0.0000050, -0.0002646, 0.0003763, -0.0003763, 0.0000050},
+		{-0.0000050, 0.0007071, 0.0007071, -0.0000050, -0.0002646, 0.0003763, 0.0003763, -0.0000050}
+		};
+
 const float Kr[4][4]={
-		{-0.01581, 0.01581, -0.00165, 0.00158},
-		{-0.01581, -0.01581, -0.00165, -0.00158},
-		{0.01581, -0.01581, -0.00165, 0.00158},
-		{0.01581, 0.01581, -0.00165, -0.00158}
+		{-0.00071, 0.00071, -0.00026, 0.00001},
+		{-0.00071, -0.00071, -0.00026, -0.00001},
+		{0.00071, -0.00071, -0.00026, 0.00001},
+		{0.00071, 0.00071, -0.00026, -0.00001}
 		};
 
 static bool isInit;
@@ -145,11 +149,20 @@ static void stabilizerTask(void* param)
     	sensors[0] = 0;
     	sensors[1] = eulerRollActual;
     	sensors[2] = eulerPitchActual;
-    	sensors[3] = 0; //eulerYawActual;
+    	sensors[3] = 0; //-eulerYawActual;
     	sensors[4] = 0;
-    	sensors[5] = -gyro.x;
+    	sensors[5] = gyro.x;
     	sensors[6] = -gyro.y;
-    	sensors[7] = 0; //gyro.z;
+    	sensors[7] = 0; //-gyro.z;
+
+    	K[0][5] = -pitch_gain;
+    	K[1][5] = -pitch_gain;
+    	K[2][5] = pitch_gain;
+    	K[3][5] = pitch_gain;
+    	K[0][6] = pitch_gain;
+    	K[1][6] = -pitch_gain;
+    	K[2][6] = -pitch_gain;
+    	K[3][6] = pitch_gain;
 
     	if (xQueueReceive(xQueueMode, &modeCounter, M2T(10))) {
 			DEBUG_PRINT("----------------------------\n");
@@ -157,8 +170,6 @@ static void stabilizerTask(void* param)
 		}
 
     	if (xSemaphoreTake(refSemaphore,M2T(10))) {
-    		DEBUG_PRINT("----------------------------\n");
-    		DEBUG_PRINT("Semaphore taken");
     		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
 			referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
 			referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
@@ -307,26 +318,28 @@ void refMaker(void* param)
 
 	while(1)
 	  {
+		vTaskDelayUntil(&lastWakeTime, M2T(4000)); // Wait 2 seconds
+
 		if (xSemaphoreTake(refSemaphore,M2T(10))) {
-			*(reference+0) = refCounter;		// thetaR
-			*(reference+1) = 0;		// thetaP
+			*(reference+0) = 0;		// thetaR
+			*(reference+1) = refCounter*5;		// thetaP
 			*(reference+2) = 0;		// z'
 			*(reference+3) = 0;		// thetaY'
+			DEBUG_PRINT("----------------------------\n");
+			DEBUG_PRINT("Ref written");
 			xSemaphoreGive(refSemaphore);
 		}
-		/*
+
 		if (refCounter == 0)
 			refCounter = 1;
 		else
 			refCounter = 0;
-
+/*
 		if (++refCounter > 5) {
 			refCounter = 1;
 		}
 		xQueueSendToBack(xQueueRef, &refCounter, M2T(10));
-		*/
-
-	    vTaskDelayUntil(&lastWakeTime, M2T(2000)); // Wait 2 seconds
+*/
 
 	  }
 }
@@ -385,3 +398,17 @@ LOG_ADD(LOG_FLOAT, sens3, &sensorsOut[2])
 LOG_ADD(LOG_FLOAT, sens4, &sensorsOut[3])
 LOG_GROUP_STOP(controller)
 
+LOG_GROUP_START(reference)
+LOG_ADD(LOG_FLOAT, sens1, &reference[0])
+LOG_ADD(LOG_FLOAT, sens2, &reference[1])
+LOG_ADD(LOG_FLOAT, sens3, &reference[2])
+LOG_ADD(LOG_FLOAT, sens4, &reference[3])
+LOG_GROUP_STOP(reference)
+
+PARAM_GROUP_START(lqcontroller)
+PARAM_ADD(PARAM_FLOAT, pitch_gain, &pitch_gain)
+PARAM_GROUP_STOP(lqcontroller)
+
+PARAM_GROUP_START(thrust)
+PARAM_ADD(PARAM_FLOAT, thrust, &thrustOffset)
+PARAM_GROUP_STOP(thrust)
