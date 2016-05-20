@@ -25,6 +25,7 @@
  */
 #define DEBUG_MODULE "STAB"
 #include <math.h>
+#include <string.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -86,7 +87,8 @@ static float sensorsOut[4];
 static int32_t controlMotor[4];
 
 static float thrustOffset = 0.06;  // Thrust per motor in order to reach equilibrium
-float pitch_gain = 0.00003763;
+static float K[4][8];
+static float Kr[4][4];
 
 /*
 const float K[4][8]={
@@ -96,19 +98,34 @@ const float K[4][8]={
 		{-0.0000005, 0.0008000, 0.0008000, -0.0000005, -0.0000823, 0.00003164, 0.00003164, -0.0000000}
 		};
 		*/
-
-static float K[4][8]={
-		{-0.0000050, -0.0007071, 0.0007071, 0.0000050, -0.0002646, -0.0003763, 0.0003763, 0.0000050},
-		{-0.0000050, -0.0007071, -0.0007071, -0.0000050, -0.0002646, -0.0003763, -0.0003763, -0.0000050},
-		{-0.0000050, 0.0007071, -0.0007071, 0.0000050, -0.0002646, 0.0003763, -0.0003763, 0.0000050},
-		{-0.0000050, 0.0007071, 0.0007071, -0.0000050, -0.0002646, 0.0003763, 0.0003763, -0.0000050}
+// Eco-mode
+const float K_eco[4][8]={
+		{-0.0000050, -0.0007071, 0.0007071, 0.0000050, -0.0002646, -0.00003763, 0.00003763, 0.0000050},
+		{-0.0000050, -0.0007071, -0.0007071, -0.0000050, -0.0002646, -0.00003763, -0.00003763, -0.0000050},
+		{-0.0000050, 0.0007071, -0.0007071, 0.0000050, -0.0002646, 0.00003763, -0.00003763, 0.0000050},
+		{-0.0000050, 0.0007071, 0.0007071, -0.0000050, -0.0002646, 0.00003763, 0.00003763, -0.0000050}
+		};
+// Eco-mode
+const float Kr_eco[4][4]={
+		{-0.0007071, 0.0007071, -0.0002646, 0.0000050},
+		{-0.0007071, -0.0007071, -0.0002646, -0.0000050},
+		{0.0007071, -0.0007071, -0.0002646, 0.0000050},
+		{0.0007071, 0.0007071, -0.0002646, -0.0000050}
 		};
 
-const float Kr[4][4]={
-		{-0.00071, 0.00071, -0.00026, 0.00001},
-		{-0.00071, -0.00071, -0.00026, -0.00001},
-		{0.00071, -0.00071, -0.00026, 0.00001},
-		{0.00071, 0.00071, -0.00026, -0.00001}
+// Sport-mode
+const float K_sport[4][8]={
+		{-0.0000050, -0.0007071, 0.0007071, 0.0000050, -0.0002646, -0.00003763, 0.00003763, 0.0000050},
+		{-0.0000050, -0.0007071, -0.0007071, -0.0000050, -0.0002646, -0.00003763, -0.00003763, -0.0000050},
+		{-0.0000050, 0.0007071, -0.0007071, 0.0000050, -0.0002646, 0.00003763, -0.00003763, 0.0000050},
+		{-0.0000050, 0.0007071, 0.0007071, -0.0000050, -0.0002646, 0.00003763, 0.00003763, -0.0000050}
+		};
+// Sport-mode
+const float Kr_sport[4][4]={
+		{-0.0007071, 0.001071, -0.0002646, 0.0000050},
+		{-0.0007071, -0.001071, -0.0002646, -0.0000050},
+		{0.0007071, -0.001071, -0.0002646, 0.0000050},
+		{0.0007071, 0.001071, -0.0002646, -0.0000050}
 		};
 
 static bool isInit;
@@ -126,6 +143,7 @@ static void stabilizerTask(void* param)
   //uint32_t motorCounter;
   uint32_t modeCounter;
   uint32_t lastWakeTime;
+  memcpy(&K, &K_eco, sizeof K);
 
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
 
@@ -155,19 +173,18 @@ static void stabilizerTask(void* param)
     	sensors[6] = -gyro.y;
     	sensors[7] = 0; //-gyro.z;
 
-    	K[0][5] = -pitch_gain;
-    	K[1][5] = -pitch_gain;
-    	K[2][5] = pitch_gain;
-    	K[3][5] = pitch_gain;
-    	K[0][6] = pitch_gain;
-    	K[1][6] = -pitch_gain;
-    	K[2][6] = -pitch_gain;
-    	K[3][6] = pitch_gain;
-
     	if (xQueueReceive(xQueueMode, &modeCounter, M2T(10))) {
 			DEBUG_PRINT("----------------------------\n");
 			DEBUG_PRINT("Received: %u \n", (unsigned int)modeCounter);
 		}
+    	if (modeCounter == 0) {
+    		memcpy(&K, &K_eco, sizeof K);
+    		memcpy(&Kr, &Kr_eco, sizeof Kr);
+    	}
+    	else if (modeCounter == 1) {
+    		memcpy(&K, &K_sport, sizeof K);
+    		memcpy(&Kr, &Kr_sport, sizeof Kr);
+    	}
 
     	if (xSemaphoreTake(refSemaphore,M2T(10))) {
     		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
@@ -177,16 +194,11 @@ static void stabilizerTask(void* param)
 			xSemaphoreGive(refSemaphore);
     	}
 
-
     	sensorsOut[0] = K[0][0]*sensors[0]+K[0][1]*sensors[1]+K[0][2]*sensors[2]+K[0][3]*sensors[3]+K[0][4]*sensors[4]+K[0][5]*sensors[5]+K[0][6]*sensors[6]+K[0][7]*sensors[7];
     	sensorsOut[1] = K[1][0]*sensors[0]+K[1][1]*sensors[1]+K[1][2]*sensors[2]+K[1][3]*sensors[3]+K[1][4]*sensors[4]+K[1][5]*sensors[5]+K[1][6]*sensors[6]+K[1][7]*sensors[7];
     	sensorsOut[2] = K[2][0]*sensors[0]+K[2][1]*sensors[1]+K[2][2]*sensors[2]+K[2][3]*sensors[3]+K[2][4]*sensors[4]+K[2][5]*sensors[5]+K[2][6]*sensors[6]+K[2][7]*sensors[7];
     	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
 
-    	//motorPowerM1 = limitThrust(10000 + referenceOut[0]-sensorsOut[0]);
-    	//motorPowerM2 = limitThrust(10000 + referenceOut[1]-sensorsOut[1]);
-    	//motorPowerM3 = limitThrust(10000 + referenceOut[2]-sensorsOut[2]);
-    	//motorPowerM4 = limitThrust(10000 + referenceOut[3]-sensorsOut[3]);
     	controlMotor[0] = (int32_t)((thrustOffset + referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 * 4 / 9.81);
     	controlMotor[1] = (int32_t)((thrustOffset + referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 * 4 / 9.81);
     	controlMotor[2] = (int32_t)((thrustOffset + referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 * 4 / 9.81);
@@ -202,38 +214,6 @@ static void stabilizerTask(void* param)
     	motorsSetRatio(MOTOR_M2, motorPowerM2);
     	motorsSetRatio(MOTOR_M3, motorPowerM3);
     	motorsSetRatio(MOTOR_M4, motorPowerM4);
-
-
-    	/*
-    	if (xQueueReceive(xQueueRef, &motorCounter, M2T(10))) {
-    		DEBUG_PRINT("----------------------------\n");
-    		DEBUG_PRINT("Received: %u \n", (unsigned int)motorCounter);
-    	}
-
-		if (motorCounter == 1) {
-			motorPowerM1 = limitThrust(2000 + 5000*modeCounter);
-		}
-		else if (motorCounter == 2) {
-			motorPowerM2 = limitThrust(2000 + 5000*modeCounter);
-		}
-		else if (motorCounter == 3) {
-			motorPowerM3 = limitThrust(2000 + 5000*modeCounter);
-		}
-		else if (motorCounter == 4) {
-			motorPowerM4 = limitThrust(2000 + 5000*modeCounter);
-		}
-		else {
-			motorPowerM2 = limitThrust(0.0);
-			motorPowerM3 = limitThrust(0.0);
-			motorPowerM1 = limitThrust(0.0);
-			motorPowerM4 = limitThrust(0.0);
-		}
-
-		motorsSetRatio(MOTOR_M1, motorPowerM1);
-		motorsSetRatio(MOTOR_M2, motorPowerM2);
-		motorsSetRatio(MOTOR_M3, motorPowerM3);
-		motorsSetRatio(MOTOR_M4, motorPowerM4);
-		*/
 
     }
   }
@@ -283,13 +263,13 @@ void modeSwitcher(void* param)
 
 	while(1)
 	  {
+		vTaskDelayUntil(&lastWakeTime, M2T(16000)); // Wait 16 seconds
 		if (modeCounter == 0) {
 			modeCounter = 1;
 		}
 		else {
 			modeCounter = 0;
 		}
-	    vTaskDelayUntil(&lastWakeTime, M2T(10000)); // Wait 10 seconds
 	    xQueueSendToBack(xQueueMode, &modeCounter, M2T(10));
 	  }
 
@@ -318,7 +298,6 @@ void refMaker(void* param)
 
 	while(1)
 	  {
-		vTaskDelayUntil(&lastWakeTime, M2T(4000)); // Wait 2 seconds
 
 		if (xSemaphoreTake(refSemaphore,M2T(10))) {
 			*(reference+0) = 0;		// thetaR
@@ -340,6 +319,7 @@ void refMaker(void* param)
 		}
 		xQueueSendToBack(xQueueRef, &refCounter, M2T(10));
 */
+		vTaskDelayUntil(&lastWakeTime, M2T(8000)); // Wait 8 seconds
 
 	  }
 }
@@ -404,10 +384,6 @@ LOG_ADD(LOG_FLOAT, sens2, &reference[1])
 LOG_ADD(LOG_FLOAT, sens3, &reference[2])
 LOG_ADD(LOG_FLOAT, sens4, &reference[3])
 LOG_GROUP_STOP(reference)
-
-PARAM_GROUP_START(lqcontroller)
-PARAM_ADD(PARAM_FLOAT, pitch_gain, &pitch_gain)
-PARAM_GROUP_STOP(lqcontroller)
 
 PARAM_GROUP_START(thrust)
 PARAM_ADD(PARAM_FLOAT, thrust, &thrustOffset)

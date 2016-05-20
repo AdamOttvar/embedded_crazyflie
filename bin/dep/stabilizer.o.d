@@ -12,6 +12,9 @@ stabilizer.o: src/modules/src/stabilizer.c \
  /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/machine/_default_types.h \
  /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/sys/lock.h \
  /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/_ansi.h \
+ /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/string.h \
+ /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/sys/cdefs.h \
+ /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/sys/string.h \
  src/lib/FreeRTOS/include/FreeRTOS.h \
  /home/bitcraze/bin/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/4.9.3/include/stdint.h \
  /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/stdint.h \
@@ -104,6 +107,12 @@ stabilizer.o: src/modules/src/stabilizer.c \
 /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/sys/lock.h:
 
 /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/_ansi.h:
+
+/home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/string.h:
+
+/home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/sys/cdefs.h:
+
+/home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/sys/string.h:
 
 src/lib/FreeRTOS/include/FreeRTOS.h:
 
