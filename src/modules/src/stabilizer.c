@@ -85,6 +85,8 @@ static float referenceOut[4];
 static float sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
 static float sensorsOut[4];
 static int32_t controlMotor[4];
+static int32_t whichMode = 0;
+static int32_t refAngle = 0;
 
 static float thrustOffset = 0.06;  // Thrust per motor in order to reach equilibrium
 static float K[4][8];
@@ -115,17 +117,17 @@ const float Kr_eco[4][4]={
 
 // Sport-mode
 const float K_sport[4][8]={
-		{-0.0000050, -0.0007071, 0.0007071, 0.0000050, -0.0002646, -0.00003763, 0.00003763, 0.0000050},
-		{-0.0000050, -0.0007071, -0.0007071, -0.0000050, -0.0002646, -0.00003763, -0.00003763, -0.0000050},
-		{-0.0000050, 0.0007071, -0.0007071, 0.0000050, -0.0002646, 0.00003763, -0.00003763, 0.0000050},
-		{-0.0000050, 0.0007071, 0.0007071, -0.0000050, -0.0002646, 0.00003763, 0.00003763, -0.0000050}
+		{-0.0000050, -0.0005000, 0.0005000, 0.0000050, -0.0002646, -0.00003164, 0.00003164, 0.0000050},
+		{-0.0000050, -0.0005000, -0.0005000, -0.0000050, -0.0002646, -0.00003164, -0.00003164, -0.0000050},
+		{-0.0000050, 0.0005000, -0.0005000, 0.0000050, -0.0002646, 0.00003164, -0.00003164, 0.0000050},
+		{-0.0000050, 0.0005000, 0.0005000, -0.0000050, -0.0002646, 0.00003164, 0.00003164, -0.0000050}
 		};
 // Sport-mode
 const float Kr_sport[4][4]={
-		{-0.0007071, 0.001071, -0.0002646, 0.0000050},
-		{-0.0007071, -0.001071, -0.0002646, -0.0000050},
-		{0.0007071, -0.001071, -0.0002646, 0.0000050},
-		{0.0007071, 0.001071, -0.0002646, -0.0000050}
+		{-0.0005000, 0.0005000, -0.0002646, 0.0000050},
+		{-0.0005000, -0.0005000, -0.0002646, -0.0000050},
+		{0.0005000, -0.0005000, -0.0002646, 0.0000050},
+		{0.0005000, 0.0005000, -0.0002646, -0.0000050}
 		};
 
 static bool isInit;
@@ -185,6 +187,8 @@ static void stabilizerTask(void* param)
     		memcpy(&K, &K_sport, sizeof K);
     		memcpy(&Kr, &Kr_sport, sizeof Kr);
     	}
+
+    	modeCounter = whichMode;
 
     	if (xSemaphoreTake(refSemaphore,M2T(10))) {
     		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
@@ -301,7 +305,7 @@ void refMaker(void* param)
 
 		if (xSemaphoreTake(refSemaphore,M2T(10))) {
 			*(reference+0) = 0;		// thetaR
-			*(reference+1) = refCounter*5;		// thetaP
+			*(reference+1) = refCounter*refAngle;		// thetaP
 			*(reference+2) = 0;		// z'
 			*(reference+3) = 0;		// thetaY'
 			DEBUG_PRINT("----------------------------\n");
@@ -387,4 +391,6 @@ LOG_GROUP_STOP(reference)
 
 PARAM_GROUP_START(thrust)
 PARAM_ADD(PARAM_FLOAT, thrust, &thrustOffset)
+PARAM_ADD(PARAM_INT32, refAngle, &refAngle)
+PARAM_ADD(PARAM_INT32, whichMode, &whichMode)
 PARAM_GROUP_STOP(thrust)
