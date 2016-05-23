@@ -81,25 +81,17 @@ uint32_t motorPowerM3;  // Motor 3 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM4;  // Motor 4 power output (16bit value used: 0 - 65535)
 
 static float reference[4]; // thetaR,thetaP,z',thetaY'
-static float referenceOut[4];
+static float referenceOut[4]; // reference multiplied with Kr
 static float sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
-static float sensorsOut[4];
-static int32_t controlMotor[4];
-static int32_t whichMode = 0;
-static int32_t refAngle = 0;
+static float sensorsOut[4];	// sensors multiplied with K
+static int32_t controlMotor[4]; // controllsignal for motors expressed in pwm
+static int32_t whichMode = 0;	//
+static int32_t refAngle = 0;	// Input signal for reference angle
 
 static float thrustOffset = 0.06;  // Thrust per motor in order to reach equilibrium
 static float K[4][8];
 static float Kr[4][4];
 
-/*
-const float K[4][8]={
-		{-0.0000005, -0.0008000, 0.0008000, 0.0000005, -0.0000823, -0.00003164, 0.00003164, 0.0000000},
-		{-0.0000005, -0.0008000, -0.0008000, -0.0000005, -0.0000823, -0.00003164, -0.00003164, -0.0000000},
-		{-0.0000005, 0.0008000, -0.0008000, 0.0000005, -0.0000823, 0.00003164, -0.00003164, 0.0000000},
-		{-0.0000005, 0.0008000, 0.0008000, -0.0000005, -0.0000823, 0.00003164, 0.00003164, -0.0000000}
-		};
-		*/
 // Eco-mode
 const float K_eco[4][8]={
 		{-0.0000050, -0.0007071, 0.0007071, 0.0000050, -0.0002646, -0.00003763, 0.00003763, 0.0000050},
@@ -134,9 +126,8 @@ static bool isInit;
 static bool isInitModeSwitcher;
 static bool isInitRefMaker;
 
-QueueHandle_t xQueueMode;
-//QueueHandle_t xQueueRef;
-xSemaphoreHandle refSemaphore = 0;
+QueueHandle_t xQueueMode;		// Queue for mode switch
+xSemaphoreHandle refSemaphore = 0;	// Semaphore for reference
 
 static uint16_t limitThrust(int32_t value);
 
@@ -145,7 +136,10 @@ static void stabilizerTask(void* param)
   //uint32_t motorCounter;
   uint32_t modeCounter;
   uint32_t lastWakeTime;
+  // Copy K_eco and Kr_eco to K and Kr in order to start using
+  // these controller parameters
   memcpy(&K, &K_eco, sizeof K);
+  memcpy(&Kr, &Kr_eco, sizeof Kr);
 
   vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
 
@@ -166,6 +160,8 @@ static void stabilizerTask(void* param)
 
     	sensfusion6UpdateQ(gyro.x, gyro.y, gyro.z, acc.x, acc.y, acc.z, ATTITUDE_UPDATE_DT);
     	sensfusion6GetEulerRPY(&eulerRollActual, &eulerPitchActual, &eulerYawActual);
+    	// Since not all states are interresting at the moment these are set to zero
+    	// but still here so that it's easy to change
     	sensors[0] = 0;
     	sensors[1] = eulerRollActual;
     	sensors[2] = eulerPitchActual;
@@ -175,10 +171,12 @@ static void stabilizerTask(void* param)
     	sensors[6] = -gyro.y;
     	sensors[7] = 0; //-gyro.z;
 
+    	// If there exists values in queue receive them
     	if (xQueueReceive(xQueueMode, &modeCounter, M2T(10))) {
 			DEBUG_PRINT("----------------------------\n");
 			DEBUG_PRINT("Received: %u \n", (unsigned int)modeCounter);
 		}
+    	// Set the desired controller
     	if (modeCounter == 0) {
     		memcpy(&K, &K_eco, sizeof K);
     		memcpy(&Kr, &Kr_eco, sizeof Kr);
@@ -187,9 +185,11 @@ static void stabilizerTask(void* param)
     		memcpy(&K, &K_sport, sizeof K);
     		memcpy(&Kr, &Kr_sport, sizeof Kr);
     	}
-
+    	// For debugging reasons. In order to change mode from
+    	// CF-client
     	modeCounter = whichMode;
 
+    	// Check the semaphore and access the reference values
     	if (xSemaphoreTake(refSemaphore,M2T(10))) {
     		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
 			referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
@@ -198,21 +198,23 @@ static void stabilizerTask(void* param)
 			xSemaphoreGive(refSemaphore);
     	}
 
+    	// Calculate matrix multiplication
     	sensorsOut[0] = K[0][0]*sensors[0]+K[0][1]*sensors[1]+K[0][2]*sensors[2]+K[0][3]*sensors[3]+K[0][4]*sensors[4]+K[0][5]*sensors[5]+K[0][6]*sensors[6]+K[0][7]*sensors[7];
     	sensorsOut[1] = K[1][0]*sensors[0]+K[1][1]*sensors[1]+K[1][2]*sensors[2]+K[1][3]*sensors[3]+K[1][4]*sensors[4]+K[1][5]*sensors[5]+K[1][6]*sensors[6]+K[1][7]*sensors[7];
     	sensorsOut[2] = K[2][0]*sensors[0]+K[2][1]*sensors[1]+K[2][2]*sensors[2]+K[2][3]*sensors[3]+K[2][4]*sensors[4]+K[2][5]*sensors[5]+K[2][6]*sensors[6]+K[2][7]*sensors[7];
     	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
 
+    	// Mapping thrust in Newtons to pwm
     	controlMotor[0] = (int32_t)((thrustOffset + referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 * 4 / 9.81);
     	controlMotor[1] = (int32_t)((thrustOffset + referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 * 4 / 9.81);
     	controlMotor[2] = (int32_t)((thrustOffset + referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 * 4 / 9.81);
     	controlMotor[3] = (int32_t)((thrustOffset + referenceOut[3]-sensorsOut[3]) * 1000.0 * 1092.0 * 4 / 9.81);
 
+    	// Set desired motor power
     	motorPowerM1 = limitThrust(controlMotor[0]);
     	motorPowerM2 = limitThrust(controlMotor[1]);
     	motorPowerM3 = limitThrust(controlMotor[2]);
     	motorPowerM4 = limitThrust(controlMotor[3]);
-
 
     	motorsSetRatio(MOTOR_M1, motorPowerM1);
     	motorsSetRatio(MOTOR_M2, motorPowerM2);
@@ -308,8 +310,6 @@ void refMaker(void* param)
 			*(reference+1) = refCounter*refAngle;		// thetaP
 			*(reference+2) = 0;		// z'
 			*(reference+3) = 0;		// thetaY'
-			DEBUG_PRINT("----------------------------\n");
-			DEBUG_PRINT("Ref written");
 			xSemaphoreGive(refSemaphore);
 		}
 
@@ -317,12 +317,7 @@ void refMaker(void* param)
 			refCounter = 1;
 		else
 			refCounter = 0;
-/*
-		if (++refCounter > 5) {
-			refCounter = 1;
-		}
-		xQueueSendToBack(xQueueRef, &refCounter, M2T(10));
-*/
+
 		vTaskDelayUntil(&lastWakeTime, M2T(8000)); // Wait 8 seconds
 
 	  }
@@ -336,7 +331,6 @@ void refMakerInit(void)
 	xTaskCreate(refMaker, REF_MAKER_TASK_NAME,
 			REF_MAKER_STACKSIZE, NULL, REF_MAKER_TASK_PRI, NULL);
 
-	//xQueueRef = xQueueCreate(1,sizeof(uint32_t));
 	refSemaphore = xSemaphoreCreateMutex();
 
 	isInitRefMaker = true;
