@@ -80,7 +80,7 @@ stabilizer.o: src/modules/src/stabilizer.c \
  src/utils/interface/num.h src/modules/interface/position_estimator.h \
  src/modules/interface/stabilizer_types.h \
  src/modules/interface/position_controller.h \
- src/modules/interface/altitude_hold.h
+ src/modules/interface/altitude_hold.h src/drivers/interface/led.h
 
 /home/bitcraze/bin/gcc-arm-none-eabi/arm-none-eabi/include/math.h:
 
@@ -285,3 +285,5 @@ src/modules/interface/stabilizer_types.h:
 src/modules/interface/position_controller.h:
 
 src/modules/interface/altitude_hold.h:
+
+src/drivers/interface/led.h:

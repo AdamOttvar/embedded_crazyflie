@@ -53,6 +53,7 @@
 #include "position_estimator.h"
 #include "position_controller.h"
 #include "altitude_hold.h"
+#include "led.h"
 
 
 /**
@@ -73,8 +74,6 @@ static float eulerRollActual;   // Measured roll angle in deg
 static float eulerPitchActual;  // Measured pitch angle in deg
 static float eulerYawActual;    // Measured yaw angle in deg
 
-uint16_t actuatorThrust;  // Actuator output for thrust base
-
 uint32_t motorPowerM1;  // Motor 1 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM2;  // Motor 2 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM3;  // Motor 3 power output (16bit value used: 0 - 65535)
@@ -85,37 +84,38 @@ static float referenceOut[4]; // reference multiplied with Kr
 static float sensors[8]; // z,thetaR,thetaP,thetaY,z',thetaR',thetaP',thetaY'
 static float sensorsOut[4];	// sensors multiplied with K
 static int32_t controlMotor[4]; // controllsignal for motors expressed in pwm
-static int32_t whichMode = 0;	//
-static int32_t refAngle = 0;	// Input signal for reference angle
+//static int32_t whichMode = 0;	// For debugging, to set desired mode also change in stabilizerTask
+								// and in PARAM at the bottom
+static int32_t refAngle = 20;	// Input signal for reference angle
 
 static float thrustOffset = 0.06;  // Thrust per motor in order to reach equilibrium
 static float K[4][8];
 static float Kr[4][4];
 
-// Eco-mode
-const float K_eco[4][8]={
+// Sport-mode
+const float K_sport[4][8]={
 		{-0.0000050, -0.0007071, 0.0007071, 0.0000050, -0.0002646, -0.00003763, 0.00003763, 0.0000050},
 		{-0.0000050, -0.0007071, -0.0007071, -0.0000050, -0.0002646, -0.00003763, -0.00003763, -0.0000050},
 		{-0.0000050, 0.0007071, -0.0007071, 0.0000050, -0.0002646, 0.00003763, -0.00003763, 0.0000050},
 		{-0.0000050, 0.0007071, 0.0007071, -0.0000050, -0.0002646, 0.00003763, 0.00003763, -0.0000050}
 		};
-// Eco-mode
-const float Kr_eco[4][4]={
+// Sport-mode
+const float Kr_sport[4][4]={
 		{-0.0007071, 0.0007071, -0.0002646, 0.0000050},
 		{-0.0007071, -0.0007071, -0.0002646, -0.0000050},
 		{0.0007071, -0.0007071, -0.0002646, 0.0000050},
 		{0.0007071, 0.0007071, -0.0002646, -0.0000050}
 		};
 
-// Sport-mode
-const float K_sport[4][8]={
+// Eco-mode
+const float K_eco[4][8]={
 		{-0.0000050, -0.0005000, 0.0005000, 0.0000050, -0.0002646, -0.00003164, 0.00003164, 0.0000050},
 		{-0.0000050, -0.0005000, -0.0005000, -0.0000050, -0.0002646, -0.00003164, -0.00003164, -0.0000050},
 		{-0.0000050, 0.0005000, -0.0005000, 0.0000050, -0.0002646, 0.00003164, -0.00003164, 0.0000050},
 		{-0.0000050, 0.0005000, 0.0005000, -0.0000050, -0.0002646, 0.00003164, 0.00003164, -0.0000050}
 		};
-// Sport-mode
-const float Kr_sport[4][4]={
+// Eco-mode
+const float Kr_eco[4][4]={
 		{-0.0005000, 0.0005000, -0.0002646, 0.0000050},
 		{-0.0005000, -0.0005000, -0.0002646, -0.0000050},
 		{0.0005000, -0.0005000, -0.0002646, 0.0000050},
@@ -130,6 +130,7 @@ QueueHandle_t xQueueMode;		// Queue for mode switch
 xSemaphoreHandle refSemaphore = 0;	// Semaphore for reference
 
 static uint16_t limitThrust(int32_t value);
+void updateLQController(void);
 
 static void stabilizerTask(void* param)
 {
@@ -173,48 +174,24 @@ static void stabilizerTask(void* param)
 
     	// If there exists values in queue receive them
     	if (xQueueReceive(xQueueMode, &modeCounter, M2T(10))) {
-			DEBUG_PRINT("----------------------------\n");
-			DEBUG_PRINT("Received: %u \n", (unsigned int)modeCounter);
+
+    		// For debugging reasons. In order to change mode from
+			// CF-client
+			//modeCounter = whichMode;
+
+    		// Set the desired controller
+			if (modeCounter == 0) {
+				memcpy(&K, &K_eco, sizeof K);
+				memcpy(&Kr, &Kr_eco, sizeof Kr);
+			}
+			else if (modeCounter == 1) {
+				memcpy(&K, &K_sport, sizeof K);
+				memcpy(&Kr, &Kr_sport, sizeof Kr);
+			}
 		}
-    	// Set the desired controller
-    	if (modeCounter == 0) {
-    		memcpy(&K, &K_eco, sizeof K);
-    		memcpy(&Kr, &Kr_eco, sizeof Kr);
-    	}
-    	else if (modeCounter == 1) {
-    		memcpy(&K, &K_sport, sizeof K);
-    		memcpy(&Kr, &Kr_sport, sizeof Kr);
-    	}
-    	// For debugging reasons. In order to change mode from
-    	// CF-client
-    	modeCounter = whichMode;
 
-    	// Check the semaphore and access the reference values
-    	if (xSemaphoreTake(refSemaphore,M2T(10))) {
-    		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
-			referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
-			referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
-			referenceOut[3] = Kr[3][0]*reference[0]+Kr[3][1]*reference[1]+Kr[3][2]*reference[2]+Kr[3][3]*reference[3];
-			xSemaphoreGive(refSemaphore);
-    	}
-
-    	// Calculate matrix multiplication
-    	sensorsOut[0] = K[0][0]*sensors[0]+K[0][1]*sensors[1]+K[0][2]*sensors[2]+K[0][3]*sensors[3]+K[0][4]*sensors[4]+K[0][5]*sensors[5]+K[0][6]*sensors[6]+K[0][7]*sensors[7];
-    	sensorsOut[1] = K[1][0]*sensors[0]+K[1][1]*sensors[1]+K[1][2]*sensors[2]+K[1][3]*sensors[3]+K[1][4]*sensors[4]+K[1][5]*sensors[5]+K[1][6]*sensors[6]+K[1][7]*sensors[7];
-    	sensorsOut[2] = K[2][0]*sensors[0]+K[2][1]*sensors[1]+K[2][2]*sensors[2]+K[2][3]*sensors[3]+K[2][4]*sensors[4]+K[2][5]*sensors[5]+K[2][6]*sensors[6]+K[2][7]*sensors[7];
-    	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
-
-    	// Mapping thrust in Newtons to pwm
-    	controlMotor[0] = (int32_t)((thrustOffset + referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 * 4 / 9.81);
-    	controlMotor[1] = (int32_t)((thrustOffset + referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 * 4 / 9.81);
-    	controlMotor[2] = (int32_t)((thrustOffset + referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 * 4 / 9.81);
-    	controlMotor[3] = (int32_t)((thrustOffset + referenceOut[3]-sensorsOut[3]) * 1000.0 * 1092.0 * 4 / 9.81);
-
-    	// Set desired motor power
-    	motorPowerM1 = limitThrust(controlMotor[0]);
-    	motorPowerM2 = limitThrust(controlMotor[1]);
-    	motorPowerM3 = limitThrust(controlMotor[2]);
-    	motorPowerM4 = limitThrust(controlMotor[3]);
+    	// Update control signal
+    	updateLQController();
 
     	motorsSetRatio(MOTOR_M1, motorPowerM1);
     	motorsSetRatio(MOTOR_M2, motorPowerM2);
@@ -223,6 +200,42 @@ static void stabilizerTask(void* param)
 
     }
   }
+}
+
+// Function for updating control signal
+void updateLQController(void) {
+
+	// Check the semaphore and access the reference values
+	if (xSemaphoreTake(refSemaphore,M2T(10))) {
+		referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
+		referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
+		referenceOut[2] = Kr[2][0]*reference[0]+Kr[2][1]*reference[1]+Kr[2][2]*reference[2]+Kr[2][3]*reference[3];
+		referenceOut[3] = Kr[3][0]*reference[0]+Kr[3][1]*reference[1]+Kr[3][2]*reference[2]+Kr[3][3]*reference[3];
+		xSemaphoreGive(refSemaphore);
+	}
+
+	// Calculate matrix multiplication
+	sensorsOut[0] = K[0][0]*sensors[0]+K[0][1]*sensors[1]+K[0][2]*sensors[2]+K[0][3]*sensors[3]+K[0][4]*sensors[4]+K[0][5]*sensors[5]+K[0][6]*sensors[6]+K[0][7]*sensors[7];
+	sensorsOut[1] = K[1][0]*sensors[0]+K[1][1]*sensors[1]+K[1][2]*sensors[2]+K[1][3]*sensors[3]+K[1][4]*sensors[4]+K[1][5]*sensors[5]+K[1][6]*sensors[6]+K[1][7]*sensors[7];
+	sensorsOut[2] = K[2][0]*sensors[0]+K[2][1]*sensors[1]+K[2][2]*sensors[2]+K[2][3]*sensors[3]+K[2][4]*sensors[4]+K[2][5]*sensors[5]+K[2][6]*sensors[6]+K[2][7]*sensors[7];
+	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
+
+	// Mapping thrust in Newtons to pwm
+	controlMotor[0] = (int32_t)((thrustOffset + referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 * 4 / 9.81);
+	controlMotor[1] = (int32_t)((thrustOffset + referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 * 4 / 9.81);
+	controlMotor[2] = (int32_t)((thrustOffset + referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 * 4 / 9.81);
+	controlMotor[3] = (int32_t)((thrustOffset + referenceOut[3]-sensorsOut[3]) * 1000.0 * 1092.0 * 4 / 9.81);
+
+	// Set desired motor power
+	motorPowerM1 = limitThrust(controlMotor[0]);
+	motorPowerM2 = limitThrust(controlMotor[1]);
+	motorPowerM3 = limitThrust(controlMotor[2]);
+	motorPowerM4 = limitThrust(controlMotor[3]);
+}
+
+static uint16_t limitThrust(int32_t value)
+{
+  return limitUint16(value);
 }
 
 void stabilizerInit(void)
@@ -255,11 +268,6 @@ bool stabilizerTest(void)
   return pass;
 }
 
-static uint16_t limitThrust(int32_t value)
-{
-  return limitUint16(value);
-}
-
 void modeSwitcher(void* param)
 {
 	uint32_t lastWakeTime;
@@ -288,7 +296,6 @@ void modeSwitcherInit(void)
 
 	xTaskCreate(modeSwitcher, MODE_SWITCHER_TASK_NAME,
 			MODE_SWITCHER_STACKSIZE, NULL, MODE_SWITCHER_TASK_PRI, NULL);
-
 	xQueueMode = xQueueCreate(1,sizeof(uint32_t));
 
 	isInitModeSwitcher = true;
@@ -330,7 +337,6 @@ void refMakerInit(void)
 
 	xTaskCreate(refMaker, REF_MAKER_TASK_NAME,
 			REF_MAKER_STACKSIZE, NULL, REF_MAKER_TASK_PRI, NULL);
-
 	refSemaphore = xSemaphoreCreateMutex();
 
 	isInitRefMaker = true;
@@ -341,7 +347,6 @@ LOG_GROUP_START(stabilizer)
 LOG_ADD(LOG_FLOAT, roll, &eulerRollActual)
 LOG_ADD(LOG_FLOAT, pitch, &eulerPitchActual)
 LOG_ADD(LOG_FLOAT, yaw, &eulerYawActual)
-LOG_ADD(LOG_UINT16, thrust, &actuatorThrust)
 LOG_GROUP_STOP(stabilizer)
 
 LOG_GROUP_START(acc)
@@ -386,5 +391,5 @@ LOG_GROUP_STOP(reference)
 PARAM_GROUP_START(thrust)
 PARAM_ADD(PARAM_FLOAT, thrust, &thrustOffset)
 PARAM_ADD(PARAM_INT32, refAngle, &refAngle)
-PARAM_ADD(PARAM_INT32, whichMode, &whichMode)
+//PARAM_ADD(PARAM_INT32, whichMode, &whichMode)
 PARAM_GROUP_STOP(thrust)
