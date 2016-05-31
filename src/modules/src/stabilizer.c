@@ -113,10 +113,10 @@ const float Kr_sport[4][4]={
 
 // Eco-mode
 const float K_eco[4][8]={
-		{-0.0000050, -0.0005000, 0.0005000, 0.0000050, -0.0002646, -0.00003164, 0.00003164, 0.0000050},
-		{-0.0000050, -0.0005000, -0.0005000, -0.0000050, -0.0002646, -0.00003164, -0.00003164, -0.0000050},
-		{-0.0000050, 0.0005000, -0.0005000, 0.0000050, -0.0002646, 0.00003164, -0.00003164, 0.0000050},
-		{-0.0000050, 0.0005000, 0.0005000, -0.0000050, -0.0002646, 0.00003164, 0.00003164, -0.0000050}
+		{-0.0000050, -0.0005000, 0.0005000, 0.0002000, -0.0002646, -0.00003164, 0.00003164, 0.0000300},
+		{-0.0000050, -0.0005000, -0.0005000, -0.0002000, -0.0002646, -0.00003164, -0.00003164, -0.0000300},
+		{-0.0000050, 0.0005000, -0.0005000, 0.0002000, -0.0002646, 0.00003164, -0.00003164, 0.0000300},
+		{-0.0000050, 0.0005000, 0.0005000, -0.0002000, -0.0002646, 0.00003164, 0.00003164, -0.0000300}
 		};
 // Eco-mode
 const float Kr_eco[4][4]={
@@ -170,11 +170,11 @@ static void stabilizerTask(void* param)
     	sensors[0] = 0;
     	sensors[1] = eulerRollActual;
     	sensors[2] = eulerPitchActual;
-    	sensors[3] = 0; //-eulerYawActual;
+    	sensors[3] = -eulerYawActual;
     	sensors[4] = 0;
     	sensors[5] = gyro.x;
     	sensors[6] = -gyro.y;
-    	sensors[7] = 0; //-gyro.z;
+    	sensors[7] = -gyro.z;
 
     	// If there exists values in queue receive them
     	if (xQueueReceive(xQueueMode, &modeCounter, M2T(10))) {
@@ -182,7 +182,7 @@ static void stabilizerTask(void* param)
     		// For debugging reasons. In order to change mode from
 			// CF-client
 			//modeCounter = whichMode;
-
+    		modeCounter = 0;
     		// Set the desired controller
 			if (modeCounter == 0) {
 				memcpy(&K, &K_eco, sizeof K);
@@ -214,8 +214,8 @@ void updateLQController(void) {
 
 	reference[0] = eulerRollDesired;
 	reference[1] = eulerPitchDesired;
+	reference[2] = 0;
 	reference[3] = 0;
-	reference[4] = 0;
 
 	referenceOut[0] = Kr[0][0]*reference[0]+Kr[0][1]*reference[1]+Kr[0][2]*reference[2]+Kr[0][3]*reference[3];
 	referenceOut[1] = Kr[1][0]*reference[0]+Kr[1][1]*reference[1]+Kr[1][2]*reference[2]+Kr[1][3]*reference[3];
@@ -229,10 +229,10 @@ void updateLQController(void) {
 	sensorsOut[3] = K[3][0]*sensors[0]+K[3][1]*sensors[1]+K[3][2]*sensors[2]+K[3][3]*sensors[3]+K[3][4]*sensors[4]+K[3][5]*sensors[5]+K[3][6]*sensors[6]+K[3][7]*sensors[7];
 
 	// Mapping thrust in Newtons to pwm
-	controlMotor[0] = (int32_t)((actuatorThrust + referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 * 4 / 9.81);
-	controlMotor[1] = (int32_t)((actuatorThrust + referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 * 4 / 9.81);
-	controlMotor[2] = (int32_t)((actuatorThrust + referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 * 4 / 9.81);
-	controlMotor[3] = (int32_t)((actuatorThrust + referenceOut[3]-sensorsOut[3]) * 1000.0 * 1092.0 * 4 / 9.81);
+	controlMotor[0] = (int32_t)((actuatorThrust) + (referenceOut[0]-sensorsOut[0]) * 1000.0 * 1092.0 * 4 / 9.81);
+	controlMotor[1] = (int32_t)((actuatorThrust) + (referenceOut[1]-sensorsOut[1]) * 1000.0 * 1092.0 * 4 / 9.81);
+	controlMotor[2] = (int32_t)((actuatorThrust) + (referenceOut[2]-sensorsOut[2]) * 1000.0 * 1092.0 * 4 / 9.81);
+	controlMotor[3] = (int32_t)((actuatorThrust) + (referenceOut[3]-sensorsOut[3]) * 1000.0 * 1092.0 * 4 / 9.81);
 
 	// Set desired motor power
 	motorPowerM1 = limitThrust(controlMotor[0]);
@@ -390,10 +390,10 @@ LOG_ADD(LOG_FLOAT, sens4, &sensorsOut[3])
 LOG_GROUP_STOP(controller)
 
 LOG_GROUP_START(reference)
-LOG_ADD(LOG_FLOAT, sens1, &reference[0])
-LOG_ADD(LOG_FLOAT, sens2, &reference[1])
-LOG_ADD(LOG_FLOAT, sens3, &reference[2])
-LOG_ADD(LOG_FLOAT, sens4, &reference[3])
+LOG_ADD(LOG_FLOAT, ref1, &reference[0])
+LOG_ADD(LOG_FLOAT, ref2, &reference[1])
+LOG_ADD(LOG_FLOAT, ref3, &reference[2])
+LOG_ADD(LOG_FLOAT, ref4, &reference[3])
 LOG_GROUP_STOP(reference)
 
 PARAM_GROUP_START(thrust)
