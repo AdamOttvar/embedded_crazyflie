@@ -73,6 +73,9 @@ static Axis3f mag;  // Magnetometer axis data in testla
 static float eulerRollActual;   // Measured roll angle in deg
 static float eulerPitchActual;  // Measured pitch angle in deg
 static float eulerYawActual;    // Measured yaw angle in deg
+static float eulerRollDesired;  // Desired roll angle in deg
+static float eulerPitchDesired; // Desired ptich angle in deg
+static float eulerYawDesired;   // Desired yaw angle in deg
 
 uint32_t motorPowerM1;  // Motor 1 power output (16bit value used: 0 - 65535)
 uint32_t motorPowerM2;  // Motor 2 power output (16bit value used: 0 - 65535)
